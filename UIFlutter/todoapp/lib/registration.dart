@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:todoapp/loginPage.dart';
 import 'applogo.dart';
+import 'package:http/http.dart' as http;
+import 'config.dart';
 
 class Registration extends StatefulWidget {
   @override
@@ -11,6 +15,35 @@ class _RegistrationState extends State<Registration> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   bool _isNotValidate = false;
+
+  void registerUser() async {
+    if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
+      var regBody = {
+        "email": emailController.text,
+        "password": passwordController.text
+      };
+
+      var response = await http.post(Uri.parse(registration),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(regBody));
+
+      var jsonResponse = jsonDecode(response.body);
+      print(jsonResponse['status']);
+
+      if (jsonResponse['status']) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SignInPage()),
+        );
+      } else {
+        print('Something wrong');
+      }
+    } else {
+      setState(() {
+        _isNotValidate = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +115,7 @@ class _RegistrationState extends State<Registration> {
                   GestureDetector(
                     onTap: () {
                       // Handle registration logic here
+                      registerUser();
                     },
                     child: Container(
                       padding: EdgeInsets.symmetric(vertical: 16),
