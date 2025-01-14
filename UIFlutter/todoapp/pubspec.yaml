@@ -32,6 +32,8 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   http:
+  shared_preferences:
+  jwt_decoder:
 
 
 dev_dependencies:

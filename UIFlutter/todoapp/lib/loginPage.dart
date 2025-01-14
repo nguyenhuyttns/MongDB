@@ -1,6 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todoapp/dashboard.dart';
 import 'package:todoapp/registration.dart';
 import 'applogo.dart';
+import 'package:http/http.dart' as http;
+import 'config.dart';
 
 class SignInPage extends StatefulWidget {
   @override
@@ -8,6 +14,51 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  bool _isNotValiate = false;
+  late SharedPreferences prefs;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    initSharedPref();
+  }
+
+  void initSharedPref() async {
+    prefs = await SharedPreferences.getInstance();
+  }
+
+  void loginUser() async {
+    if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
+      var regBody = {
+        "email": emailController.text,
+        "password": passwordController.text
+      };
+
+      var response = await http.post(Uri.parse(login),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(regBody));
+
+      var jsonResponse = jsonDecode(response.body);
+
+      if (jsonResponse['status']) {
+        var myToken = jsonResponse['token'];
+        prefs.setString('token', myToken);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => Dashboard(
+                    token: myToken,
+                  )),
+        );
+      } else {
+        print('Something wrong');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -42,6 +93,7 @@ class _SignInPageState extends State<SignInPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: TextField(
+                      controller: emailController,
                       keyboardType: TextInputType.text,
                       decoration: InputDecoration(
                         filled: true,
@@ -57,6 +109,7 @@ class _SignInPageState extends State<SignInPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: TextField(
+                      controller: passwordController,
                       keyboardType: TextInputType.text,
                       decoration: InputDecoration(
                         filled: true,
@@ -71,7 +124,7 @@ class _SignInPageState extends State<SignInPage> {
                   SizedBox(height: 20),
                   GestureDetector(
                     onTap: () {
-                      // Handle login logic here
+                      loginUser();
                     },
                     child: Container(
                       padding: EdgeInsets.symmetric(vertical: 16),
