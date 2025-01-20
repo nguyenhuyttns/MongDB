@@ -1,9 +1,9 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
 import 'config.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class Dashboard extends StatefulWidget {
   final token;
@@ -15,16 +15,17 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   late String userId;
-  final TextEditingController _todoTitle = TextEditingController();
-  final TextEditingController _todoDesc = TextEditingController();
-  List<String> items = new List<String>.generate(10, (i) => "item ${i + 1}");
+  TextEditingController _todoTitle = TextEditingController();
+  TextEditingController _todoDesc = TextEditingController();
+  List? items;
+  //List<String> items = new List<String>.generate(10, (i) => "item ${i + 1}");
 
   @override
   void initState() {
     super.initState();
     Map<String, dynamic> jwtDecodedToken = JwtDecoder.decode(widget.token);
     userId = jwtDecodedToken['_id'];
-    //getTodoList(userId);
+    getTodoList(userId);
   }
 
   void addTodo() async {
@@ -40,10 +41,21 @@ class _DashboardState extends State<Dashboard> {
           body: jsonEncode(regBody));
 
       var jsonResponse = jsonDecode(response.body);
+
+      print(jsonResponse['status']);
+
+      if (jsonResponse['status']) {
+        _todoDesc.clear();
+        _todoTitle.clear();
+        Navigator.pop(context);
+        getTodoList(userId);
+      } else {
+        print("SomeThing Went Wrong");
+      }
     }
   }
 
-  void getTodoList(String userId) async {
+  void getTodoList(userId) async {
     var regBody = {"userId": userId};
 
     var response = await http.post(Uri.parse(getToDoList),
@@ -52,7 +64,21 @@ class _DashboardState extends State<Dashboard> {
 
     var jsonResponse = jsonDecode(response.body);
     items = jsonResponse['success'];
+
     setState(() {});
+  }
+
+  void deleteItem(id) async {
+    var regBody = {"id": id};
+
+    var response = await http.post(Uri.parse(deleteToDo),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(regBody));
+
+    var jsonResponse = jsonDecode(response.body);
+    if (jsonResponse['status']) {
+      getTodoList(userId);
+    }
   }
 
   @override
@@ -63,11 +89,11 @@ class _DashboardState extends State<Dashboard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
                 top: 60.0, left: 30.0, right: 30.0, bottom: 30.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 CircleAvatar(
                   child: Icon(
                     Icons.list,
@@ -78,12 +104,12 @@ class _DashboardState extends State<Dashboard> {
                 ),
                 SizedBox(height: 10.0),
                 Text(
-                  'ToDo with NodeJS + MongoDB',
+                  'ToDo with NodeJS + Mongodb',
                   style: TextStyle(fontSize: 30.0, fontWeight: FontWeight.w700),
                 ),
                 SizedBox(height: 8.0),
                 Text(
-                  '5 Task',
+                  '${items?.length ?? 0} Task',
                   style: TextStyle(fontSize: 20),
                 ),
               ],
@@ -91,7 +117,7 @@ class _DashboardState extends State<Dashboard> {
           ),
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(20),
@@ -99,16 +125,36 @@ class _DashboardState extends State<Dashboard> {
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: items == null
-                    ? const Center(child: CircularProgressIndicator())
+                    ? null
                     : ListView.builder(
                         itemCount: items!.length,
                         itemBuilder: (context, int index) {
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.task),
-                              title: Text('${items![index]}'),
-                              subtitle: Text('${items![index]}'),
-                              trailing: const Icon(Icons.arrow_forward),
+                          return Slidable(
+                            key: const ValueKey(0),
+                            endActionPane: ActionPane(
+                              motion: const ScrollMotion(),
+                              dismissible: DismissiblePane(onDismissed: () {}),
+                              children: [
+                                SlidableAction(
+                                  backgroundColor: Color(0xFFFE4A49),
+                                  foregroundColor: Colors.white,
+                                  icon: Icons.delete,
+                                  label: 'Delete',
+                                  onPressed: (BuildContext context) {
+                                    print('${items![index]}');
+                                    deleteItem('${items![index]['_id']}');
+                                  },
+                                ),
+                              ],
+                            ),
+                            child: Card(
+                              borderOnForeground: false,
+                              child: ListTile(
+                                leading: Icon(Icons.task),
+                                title: Text('${items![index]["title"]}'),
+                                subtitle: Text('${items![index]["desc"]}'),
+                                trailing: Icon(Icons.arrow_back),
+                              ),
                             ),
                           );
                         }),
@@ -119,7 +165,7 @@ class _DashboardState extends State<Dashboard> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _displayTextInputDialog(context),
-        child: const Icon(Icons.add),
+        child: Icon(Icons.add),
         tooltip: 'Add-ToDo',
       ),
     );
@@ -127,49 +173,51 @@ class _DashboardState extends State<Dashboard> {
 
   Future<void> _displayTextInputDialog(BuildContext context) async {
     return showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add To-Do'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: _todoTitle,
-                  decoration: const InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    hintText: "Title",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Add To-Do'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: TextField(
+                    controller: _todoTitle,
+                    keyboardType: TextInputType.text,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintText: "Title",
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(10.0)))),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: _todoDesc,
-                  decoration: const InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    hintText: "Description",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
+                SizedBox(height: 8),
+                Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: TextField(
+                    controller: _todoDesc,
+                    keyboardType: TextInputType.text,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintText: "Description",
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(10.0)))),
                   ),
                 ),
-              ),
-              ElevatedButton(
-                onPressed: addTodo,
-                child: const Text("Add"),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+                SizedBox(height: 8),
+                ElevatedButton(
+                    onPressed: () {
+                      addTodo();
+                    },
+                    child: Text("Add"))
+              ],
+            ),
+          );
+        });
   }
 }

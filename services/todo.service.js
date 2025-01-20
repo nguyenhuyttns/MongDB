@@ -10,6 +10,11 @@ class ToDoServices{
         const tododata = await ToDoModel.find({userId});
         return tododata;
     }
+
+    static async deleteTododata(id){
+        const deleted = await ToDoModel.findOneAndDelete({_id:id})
+        return deleted;
+    }
 }
 
 module.exports = ToDoServices;
