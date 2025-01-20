@@ -6,28 +6,28 @@ import 'package:http/http.dart' as http;
 import 'config.dart';
 
 class Dashboard extends StatefulWidget {
-  final String token;
-  const Dashboard({required this.token, Key? key}) : super(key: key);
+  final token;
+  const Dashboard({@required this.token, Key? key}) : super(key: key);
 
   @override
-  State<StatefulWidget> createState() => _DashboardState();
+  State<Dashboard> createState() => _DashboardState();
 }
 
 class _DashboardState extends State<Dashboard> {
   late String userId;
-
   final TextEditingController _todoTitle = TextEditingController();
   final TextEditingController _todoDesc = TextEditingController();
+  List<String> items = new List<String>.generate(10, (i) => "item ${i + 1}");
 
   @override
   void initState() {
     super.initState();
     Map<String, dynamic> jwtDecodedToken = JwtDecoder.decode(widget.token);
-
     userId = jwtDecodedToken['_id'];
+    //getTodoList(userId);
   }
 
-  void addToDo() async {
+  void addTodo() async {
     if (_todoTitle.text.isNotEmpty && _todoDesc.text.isNotEmpty) {
       var regBody = {
         "userId": userId,
@@ -40,33 +40,87 @@ class _DashboardState extends State<Dashboard> {
           body: jsonEncode(regBody));
 
       var jsonResponse = jsonDecode(response.body);
-      print(jsonResponse['status']);
-
-      if (jsonResponse['status']) {
-        _todoDesc.clear();
-        _todoTitle.clear();
-        Navigator.pop(context);
-      } else {
-        print('Something wrong');
-      }
     }
+  }
+
+  void getTodoList(String userId) async {
+    var regBody = {"userId": userId};
+
+    var response = await http.post(Uri.parse(getToDoList),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(regBody));
+
+    var jsonResponse = jsonDecode(response.body);
+    items = jsonResponse['success'];
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(userId),
-          ],
-        ),
+      backgroundColor: Colors.lightBlueAccent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.only(
+                top: 60.0, left: 30.0, right: 30.0, bottom: 30.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                CircleAvatar(
+                  child: Icon(
+                    Icons.list,
+                    size: 30.0,
+                  ),
+                  backgroundColor: Colors.white,
+                  radius: 30.0,
+                ),
+                SizedBox(height: 10.0),
+                Text(
+                  'ToDo with NodeJS + MongoDB',
+                  style: TextStyle(fontSize: 30.0, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 8.0),
+                Text(
+                  '5 Task',
+                  style: TextStyle(fontSize: 20),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20))),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: items == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        itemCount: items!.length,
+                        itemBuilder: (context, int index) {
+                          return Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.task),
+                              title: Text('${items![index]}'),
+                              subtitle: Text('${items![index]}'),
+                              trailing: const Icon(Icons.arrow_forward),
+                            ),
+                          );
+                        }),
+              ),
+            ),
+          )
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _displayTextInputDialog(context),
         child: const Icon(Icons.add),
-        tooltip: 'App-ToDo',
+        tooltip: 'Add-ToDo',
       ),
     );
   }
@@ -84,7 +138,6 @@ class _DashboardState extends State<Dashboard> {
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
                   controller: _todoTitle,
-                  keyboardType: TextInputType.text,
                   decoration: const InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
@@ -99,7 +152,6 @@ class _DashboardState extends State<Dashboard> {
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
                   controller: _todoDesc,
-                  keyboardType: TextInputType.text,
                   decoration: const InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
@@ -111,9 +163,7 @@ class _DashboardState extends State<Dashboard> {
                 ),
               ),
               ElevatedButton(
-                onPressed: () {
-                  addToDo();
-                },
+                onPressed: addTodo,
                 child: const Text("Add"),
               ),
             ],
